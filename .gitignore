@@ -52,3 +52,5 @@ htmlcov/
 
 # tests
 tests/
+.claude/
+CLAUDE.md
