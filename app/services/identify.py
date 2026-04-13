@@ -1,15 +1,18 @@
 import base64
-import os
+import io
+import logging
+import time
 
 import numpy as np
 from deepface import DeepFace
 from PIL import Image
-import io
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db.models import FaceRegistration
+from app.embeddings import embedding_store
 from app.schemas.identify import IdentifyMatch, IdentifyResponse
+
+logger = logging.getLogger(__name__)
 
 
 def _b64_to_numpy(img: str) -> np.ndarray:
@@ -21,59 +24,38 @@ def _b64_to_numpy(img: str) -> np.ndarray:
 
 
 def identify_face(img: str, db: Session) -> IdentifyResponse:
-    if not os.path.isdir(settings.face_db_path):
-        return IdentifyResponse(matches=[])
+    t0 = time.perf_counter()
 
     img_array = _b64_to_numpy(img)
+    t1 = time.perf_counter()
 
-    results = DeepFace.find(
+    representations = DeepFace.represent(
         img_path=img_array,
-        db_path=settings.face_db_path,
         model_name=settings.model_name,
         detector_backend=settings.detector_backend,
-        distance_metric=settings.distance_metric,
         align=True,
         enforce_detection=False,
-        silent=True,
-        anti_spoofing=settings.anti_spoofing,
+    )
+    t2 = time.perf_counter()
+
+    if not representations:
+        return IdentifyResponse(matches=[])
+
+    query_embedding = representations[0]["embedding"]
+    results = embedding_store.search(query_embedding, settings.model_name, settings.distance_metric)
+    t3 = time.perf_counter()
+
+    matches = [
+        IdentifyMatch(email=r.email, distance=r.distance, threshold=r.threshold)
+        for r in results
+    ]
+
+    logger.info(
+        "identify timing — decode: %.0fms | represent: %.0fms | search: %.0fms | total: %.0fms",
+        (t1 - t0) * 1000,
+        (t2 - t1) * 1000,
+        (t3 - t2) * 1000,
+        (t3 - t0) * 1000,
     )
 
-    def _get_distance(row) -> float:
-        for col in [f"{settings.model_name}_{settings.distance_metric}", "distance", settings.distance_metric]:
-            if col in row.index:
-                return float(row[col])
-        # fallback: pick the first numeric column that isn't identity/threshold
-        for col in row.index:
-            if col not in ("identity", "threshold") and isinstance(row[col], (int, float)):
-                return float(row[col])
-        return 0.0
-
-    matches: list[IdentifyMatch] = []
-    for df in results:
-        for _, row in df.iterrows():
-            identity_path = os.path.normpath(row["identity"])
-            record = db.query(FaceRegistration).filter(
-                FaceRegistration.image_path.contains(os.path.basename(identity_path))
-            ).first()
-            matches.append(
-                IdentifyMatch(
-                    email=record.email if record else None,
-                    distance=_get_distance(row),
-                    threshold=float(row.get("threshold", 0.0)),
-                )
-            )
-
-    is_real: bool | None = None
-    antispoof_score: float | None = None
-
-    if settings.anti_spoofing and results:
-        first_df = results[0]
-        if not first_df.empty and "is_real" in first_df.columns:
-            is_real = bool(first_df.iloc[0]["is_real"])
-            antispoof_score = float(first_df.iloc[0].get("antispoof_score", 0.0))
-
-    return IdentifyResponse(
-        matches=matches,
-        is_real=is_real,
-        antispoof_score=antispoof_score,
-    )
+    return IdentifyResponse(matches=matches)

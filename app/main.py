@@ -1,9 +1,16 @@
+import logging
 import os
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 from app.api.routes import analyze, detect, identify, register, verify
 from app.config import settings
@@ -24,13 +31,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     dummy = np.zeros((100, 100, 3), dtype=np.uint8)
     try:
-        DeepFace.extract_faces(
+        DeepFace.represent(
             img_path=dummy,
+            model_name=settings.model_name,
             detector_backend=settings.detector_backend,
             enforce_detection=False,
         )
     except Exception:
         pass
+
+    # Load embeddings into memory
+    from app.db.database import SessionLocal
+    from app.embeddings import embedding_store
+
+    db = SessionLocal()
+    try:
+        embedding_store.load(db)
+    finally:
+        db.close()
 
     yield
 

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db.models import FaceRegistration
+from app.embeddings import embedding_store
 from app.schemas.register import RegisterResponse
 
 
@@ -69,6 +70,7 @@ def register_face(body_img: str, full_name: str, email: str | None, external_id:
         os.remove(image_path)
         raise DuplicateEmailError(email)
     db.refresh(record)
+    embedding_store.add(record.id, record.email, embedding)
 
     return RegisterResponse(
         id=record.id,
