@@ -22,8 +22,6 @@ class FaceAnalysis(BaseModel):
     dominant_race: str | None = None
     race: dict | None = None
     region: FaceRegion
-    is_real: bool | None = None
-    antispoof_score: float | None = None
 
 
 class AnalyzeResponse(BaseModel):
