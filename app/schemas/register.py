@@ -15,7 +15,6 @@ class RegisterResponse(BaseModel):
     full_name: str
     email: str | None
     external_id: str | None
-    image_path: str
     model_name: str
     detector_backend: str
     is_active: bool
