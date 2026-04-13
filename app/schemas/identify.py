@@ -6,7 +6,7 @@ class IdentifyRequest(BaseModel):
 
 
 class IdentifyMatch(BaseModel):
-    identity: str
+    email: str | None
     distance: float
     threshold: float
 
