@@ -42,19 +42,22 @@ export default function IdentifyPage() {
 
   return (
     <div className="page-inner">
-      <div className="page-header" style={locked ? { maxWidth: 520, margin: '0 auto' } : undefined}>
+      <div className="page-header" style={{ maxWidth: 520, margin: '0 auto' }}>
         <div className="page-tag">{t.identify.tag}</div>
         <h2 className="page-title">{t.identify.title}</h2>
       </div>
 
-      <div className={locked ? '' : 'two-col'} style={locked ? { maxWidth: 520, margin: '0 auto' } : undefined}>
+      <div style={{ maxWidth: 520, margin: '0 auto' }}>
         {!locked && (
-          <FaceCamera
-            key={cameraKey}
-            onCapture={handleCapture}
-            onFaceDetected={setFaceDetected}
-            autoCapture
-          />
+          <>
+            <FaceCamera
+              key={cameraKey}
+              onCapture={handleCapture}
+              onFaceDetected={setFaceDetected}
+              autoCapture
+            />
+            <div style={{ height: 16 }} />
+          </>
         )}
 
         <div className="panel-wrap">
