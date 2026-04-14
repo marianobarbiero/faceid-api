@@ -46,7 +46,7 @@ def identify_face(img: str, db: Session) -> IdentifyResponse:
     t3 = time.perf_counter()
 
     matches = [
-        IdentifyMatch(email=r.email, distance=r.distance, threshold=r.threshold)
+        IdentifyMatch(email=r.email, score=r.score, threshold=r.threshold)
         for r in results
     ]
 

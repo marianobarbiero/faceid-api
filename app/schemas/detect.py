@@ -17,8 +17,6 @@ class FacialArea(BaseModel):
 class DetectedFace(BaseModel):
     facial_area: FacialArea
     confidence: float
-    is_real: bool | None = None
-    antispoof_score: float | None = None
 
 
 class DetectResponse(BaseModel):

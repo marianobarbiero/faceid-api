@@ -19,7 +19,7 @@ class EmbeddingEntry:
 @dataclass
 class SearchResult:
     email: str | None
-    distance: float
+    score: float
     threshold: float
 
 
@@ -79,18 +79,20 @@ class EmbeddingStore:
         matrix = np.stack([e.vector for e in self._entries])  # (N, D)
         distances = 1.0 - (matrix @ query)  # cosine distance, vectorized
 
+        score_threshold = round(1.0 - threshold, 6)
+
         results = []
         for i, dist in enumerate(distances):
             if float(dist) <= threshold:
                 results.append(
                     SearchResult(
                         email=self._entries[i].email,
-                        distance=round(float(dist), 6),
-                        threshold=threshold,
+                        score=round(1.0 - float(dist), 6),
+                        threshold=score_threshold,
                     )
                 )
 
-        results.sort(key=lambda r: r.distance)
+        results.sort(key=lambda r: r.score, reverse=True)
         return results
 
 

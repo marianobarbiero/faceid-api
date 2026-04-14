@@ -20,5 +20,3 @@ class VerifyResponse(BaseModel):
     model: str
     distance_metric: str
     facial_areas: dict
-    is_real: bool | None = None
-    antispoof_score: float | None = None
