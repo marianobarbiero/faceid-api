@@ -32,6 +32,10 @@ deepface.db
 *.log
 logs/
 
+# Demo (React app)
+demo/node_modules/
+demo/dist/
+
 # OS
 .DS_Store
 Thumbs.db
