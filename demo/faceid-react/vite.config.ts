@@ -16,6 +16,12 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const apiKey = req.headers['x-api-key'];
+            if (apiKey) proxyReq.setHeader('x-api-key', apiKey);
+          });
+        },
       },
     },
   },
