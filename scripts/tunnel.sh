@@ -69,7 +69,9 @@ echo "==> Starting backend on 127.0.0.1:$BACKEND_PORT (log: logs/backend.log)"
 PIDS="$PIDS $!"
 
 echo "==> Building frontend (VITE_API_URL=/api)"
-(cd "$FRONTEND_DIR" && { [ -d node_modules ] || npm ci; } && VITE_API_URL=/api npm run build)
+# MSYS2_ENV_CONV_EXCL: stop Git Bash on Windows from rewriting /api into C:/Program Files/Git/api
+(cd "$FRONTEND_DIR" && { [ -d node_modules ] || npm ci; } \
+  && MSYS2_ENV_CONV_EXCL=VITE_API_URL VITE_API_URL=/api npm run build)
 
 echo "==> Starting vite preview on :$FRONTEND_PORT (log: logs/frontend.log)"
 (cd "$FRONTEND_DIR" && exec ./node_modules/.bin/vite preview \
