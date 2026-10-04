@@ -8,6 +8,9 @@ const PATHS = {
       <path d="M9 9h.01M15 9h.01" />
     </>
   ),
+  chart: <><path d="M3 3v18h18" /><path d="M8 16v-4M13 16V8M18 16v-7" /></>,
+  upload: <><path d="M12 15V3M7 8l5-5 5 5" /><path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" /></>,
+  camera: <><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" /><circle cx="12" cy="13" r="3" /></>,
   globe: (
     <>
       <circle cx="12" cy="12" r="10" />

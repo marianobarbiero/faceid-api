@@ -47,3 +47,34 @@ export async function identifyFace(img: string): Promise<IdentifyResponse> {
   const res = await api.post<IdentifyResponse>('/identify', { img });
   return res.data;
 }
+
+export interface FaceRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface FaceAnalysis {
+  age?: number;
+  dominant_gender?: string;
+  gender?: Record<string, number>;
+  dominant_emotion?: string;
+  emotion?: Record<string, number>;
+  dominant_race?: string;
+  race?: Record<string, number>;
+  region: FaceRegion;
+  face_confidence: number;
+}
+
+export interface AnalyzeResponse {
+  faces: FaceAnalysis[];
+}
+
+export async function analyzeFace(img: string): Promise<AnalyzeResponse> {
+  const res = await api.post<AnalyzeResponse>('/analyze', {
+    img,
+    actions: ['age', 'gender', 'emotion', 'race'],
+  });
+  return res.data;
+}

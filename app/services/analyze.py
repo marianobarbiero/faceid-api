@@ -36,6 +36,11 @@ def analyze_faces(img: str, actions: list[str]) -> AnalyzeResponse:
 
     faces: list[FaceAnalysis] = []
     for face in results:
+        # With enforce_detection=False DeepFace analyzes the whole image with confidence 0
+        # when no face is found; drop it so callers get an empty list instead of made-up data
+        face_confidence = float(face.get("face_confidence") or 0.0)
+        if face_confidence <= 0:
+            continue
         region = face.get("region", {})
         faces.append(
             FaceAnalysis(
@@ -52,6 +57,7 @@ def analyze_faces(img: str, actions: list[str]) -> AnalyzeResponse:
                     w=int(region.get("w", 0)),
                     h=int(region.get("h", 0)),
                 ),
+                face_confidence=face_confidence,
             )
         )
 

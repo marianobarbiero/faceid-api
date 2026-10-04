@@ -22,6 +22,7 @@ class FaceAnalysis(BaseModel):
     dominant_race: str | None = None
     race: dict | None = None
     region: FaceRegion
+    face_confidence: float
 
 
 class AnalyzeResponse(BaseModel):
