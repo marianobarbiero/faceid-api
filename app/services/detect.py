@@ -40,6 +40,8 @@ def detect_faces(img: str) -> DetectResponse:
                     right_eye=area.get("right_eye"),
                 ),
                 confidence=float(face.get("confidence", 0.0)),
+                is_real=face.get("is_real"),
+                antispoof_score=float(face["antispoof_score"]) if "antispoof_score" in face else None,
             )
         )
 

@@ -7,6 +7,10 @@
 #   tunnel   : cloudflared tunnel --url http://localhost:4173
 #
 # Usage: ./scripts/tunnel.sh   (Ctrl+C stops everything)
+#
+# Windows + NVIDIA GPU: TensorFlow only uses the GPU under WSL2, so the backend can run
+# inside a WSL distro while the frontend and tunnel stay on Windows (see DEPLOY_TUNNEL.md):
+#   WSL_DISTRO=Ubuntu-22.04 ./scripts/tunnel.sh
 # Compatible with the bash 3.2 shipped with macOS.
 
 set -euo pipefail
@@ -17,6 +21,8 @@ LOG_DIR="$ROOT_DIR/logs"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 FRONTEND_PORT="${FRONTEND_PORT:-4173}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-300}"
+# Optional: run the backend inside this WSL distro (GPU). It must have ~/faceid-env.sh
+WSL_DISTRO="${WSL_DISTRO:-}"
 
 PIDS=""
 
@@ -33,6 +39,10 @@ cleanup() {
   for pid in $PIDS; do
     kill -KILL "$pid" 2>/dev/null || true
   done
+  # Killing wsl.exe does not stop the Linux process it started
+  if [ -n "$WSL_DISTRO" ]; then
+    wsl.exe -d "$WSL_DISTRO" -- pkill -f "uvicorn app.main:app --host 127.0.0.1 --port $BACKEND_PORT" 2>/dev/null || true
+  fi
   echo "==> Done."
 }
 trap cleanup INT TERM EXIT
@@ -48,8 +58,10 @@ require cloudflared "See DEPLOY_TUNNEL.md for installation."
 require npm "Install Node.js 20+."
 require curl "Install curl."
 
-# Python: prefer the project virtualenv
-if [ -x "$ROOT_DIR/.venv/bin/python" ]; then
+# Python: prefer the project virtualenv (not needed when the backend runs in WSL)
+if [ -n "$WSL_DISTRO" ]; then
+  require wsl.exe "WSL_DISTRO is only supported from Git Bash on Windows."
+elif [ -x "$ROOT_DIR/.venv/bin/python" ]; then
   PYTHON="$ROOT_DIR/.venv/bin/python"
 elif [ -x "$ROOT_DIR/.venv/Scripts/python.exe" ]; then
   PYTHON="$ROOT_DIR/.venv/Scripts/python.exe"
@@ -63,9 +75,17 @@ fi
 
 mkdir -p "$LOG_DIR"
 
-echo "==> Starting backend on 127.0.0.1:$BACKEND_PORT (log: logs/backend.log)"
-(cd "$ROOT_DIR" && exec "$PYTHON" -m uvicorn app.main:app \
-  --host 127.0.0.1 --port "$BACKEND_PORT" --workers 1) >"$LOG_DIR/backend.log" 2>&1 &
+if [ -n "$WSL_DISTRO" ]; then
+  echo "==> Starting backend in WSL ($WSL_DISTRO) on 127.0.0.1:$BACKEND_PORT (log: logs/backend.log)"
+  # MSYS_NO_PATHCONV: keep Git Bash from rewriting the Linux paths in the command
+  MSYS_NO_PATHCONV=1 wsl.exe -d "$WSL_DISTRO" --cd "$(cygpath -w "$ROOT_DIR")" -- bash -c \
+    "source ~/faceid-env.sh && exec python -m uvicorn app.main:app --host 127.0.0.1 --port $BACKEND_PORT --workers 1" \
+    >"$LOG_DIR/backend.log" 2>&1 &
+else
+  echo "==> Starting backend on 127.0.0.1:$BACKEND_PORT (log: logs/backend.log)"
+  (cd "$ROOT_DIR" && exec "$PYTHON" -m uvicorn app.main:app \
+    --host 127.0.0.1 --port "$BACKEND_PORT" --workers 1) >"$LOG_DIR/backend.log" 2>&1 &
+fi
 PIDS="$PIDS $!"
 
 echo "==> Building frontend (VITE_API_URL=/api)"

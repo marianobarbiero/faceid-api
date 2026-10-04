@@ -120,6 +120,42 @@ cloudflared tunnel --no-autoupdate --url http://localhost:4173
 
 `cloudflared` imprime la URL (`https://<algo>.trycloudflare.com`) en un recuadro. Para cortar, Ctrl+C en cada terminal.
 
+### Windows con GPU NVIDIA (WSL2)
+
+TensorFlow no usa la GPU en Windows nativo (desde la versión 2.11), pero sí dentro de WSL2. Con esta opción el backend corre en Ubuntu (WSL) con la GPU, y el frontend y el túnel siguen en Windows; WSL2 comparte `localhost`, así que el proxy a `:8000` funciona igual.
+
+Referencia medida con una GTX 1660 Super y un i5-2500: el detector `retinaface` pasa de ~18 s a ~0,2 s por foto y `/analyze` completo de ~20 s a ~0,7 s.
+
+Requisitos: driver NVIDIA reciente en Windows (no hace falta instalar CUDA en Ubuntu; `nvidia-smi` dentro de WSL tiene que mostrar la placa) y una distro WSL2 con Python 3.10+.
+
+Instalación, dentro de WSL (no requiere `sudo`):
+
+```bash
+# venv sin pip + pip oficial (evita depender del paquete python3-venv)
+python3 -m venv --without-pip ~/venvs/faceid
+curl -sSfL https://bootstrap.pypa.io/get-pip.py | ~/venvs/faceid/bin/python
+~/venvs/faceid/bin/pip install "tensorflow[and-cuda]" -r /mnt/c/projects/faceid-api/requirements.txt
+
+# entorno: PATH limpio, librerías CUDA, venv y (opcional) pesos compartidos con Windows
+cp /mnt/c/projects/faceid-api/scripts/faceid-env.wsl.sh ~/faceid-env.sh
+# editá ~/faceid-env.sh y descomentá DEEPFACE_HOME con tu usuario de Windows
+
+# verificar que TensorFlow ve la GPU
+source ~/faceid-env.sh && python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+```
+
+Arrancar, desde Git Bash en Windows:
+
+```bash
+WSL_DISTRO=Ubuntu-22.04 ./scripts/tunnel.sh
+```
+
+Notas:
+
+- `~/faceid-env.sh` agrega al `LD_LIBRARY_PATH` todas las librerías CUDA que instala pip: sin eso TensorFlow no encuentra `libcusolver.so.11` y vuelve a la CPU sin avisar.
+- La primera request tarda ~15–25 s mientras carga los modelos en la GPU; después responde en menos de un segundo.
+- Ctrl+C también detiene el uvicorn dentro de WSL (cortar `wsl.exe` no alcanza para eso).
+
 ## Verificar
 
 ```bash

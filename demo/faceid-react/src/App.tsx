@@ -3,10 +3,11 @@ import RegisterPage from './pages/RegisterPage';
 import IdentifyPage from './pages/IdentifyPage';
 import HomePage from './pages/HomePage';
 import AdminPage from './pages/AdminPage';
+import AnalyzePage from './pages/AnalyzePage';
 import Icon from './components/Icon';
 import { useLang } from './context/LangContext';
 
-type Page = 'home' | 'register' | 'identify' | 'admin';
+type Page = 'home' | 'register' | 'identify' | 'analyze' | 'admin';
 
 // The backoffice is not linked from the menu; it is reached directly at /back
 const ADMIN_PATH = '/back';
@@ -41,6 +42,7 @@ export default function App() {
           <button className={`nav-btn ${page === 'home' ? 'active' : ''}`} onClick={() => setPage('home')}>{t.nav.home}</button>
           <button className={`nav-btn ${page === 'register' ? 'active' : ''}`} onClick={() => setPage('register')}>{t.nav.register}</button>
           <button className={`nav-btn ${page === 'identify' ? 'active' : ''}`} onClick={() => setPage('identify')}>{t.nav.identify}</button>
+          <button className={`nav-btn ${page === 'analyze' ? 'active' : ''}`} onClick={() => setPage('analyze')}>{t.nav.analyze}</button>
           <div className="nav-sep" />
           <button className={`nav-btn ${lang === 'es' ? 'active' : ''}`} onClick={() => setLang('es')}>ES</button>
           <button className={`nav-btn ${lang === 'en' ? 'active' : ''}`} onClick={() => setLang('en')}>EN</button>
@@ -51,6 +53,7 @@ export default function App() {
         {page === 'home' && <HomePage onRegister={() => setPage('register')} onIdentify={() => setPage('identify')} />}
         {page === 'register' && <RegisterPage onIdentify={() => setPage('identify')} />}
         {page === 'identify' && <IdentifyPage />}
+        {page === 'analyze' && <AnalyzePage />}
         {page === 'admin' && <AdminPage />}
       </main>
 
@@ -63,6 +66,9 @@ export default function App() {
         </button>
         <button className={`bnav-btn ${page === 'identify' ? 'active' : ''}`} onClick={() => setPage('identify')}>
           <span className="ico"><Icon name="scanFace" /></span>{t.nav.identify}
+        </button>
+        <button className={`bnav-btn ${page === 'analyze' ? 'active' : ''}`} onClick={() => setPage('analyze')}>
+          <span className="ico"><Icon name="chart" /></span>{t.nav.analyze}
         </button>
         <button className="bnav-btn" onClick={() => setLang(lang === 'es' ? 'en' : 'es')}>
           <span className="ico"><Icon name="globe" /></span>{lang.toUpperCase()}

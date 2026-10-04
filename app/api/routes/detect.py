@@ -8,7 +8,7 @@ from app.services.detect import detect_faces
 router = APIRouter()
 
 
-@router.post("/detect", response_model=DetectResponse)
+@router.post("/detect", response_model=DetectResponse, response_model_exclude_none=True)
 def detect(
     body: DetectRequest,
     _: str = Depends(verify_api_key),
