@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     api_key: str = "changeme"
+    # Separate key for the backoffice; empty disables the /admin endpoints
+    admin_api_key: str = ""
     face_db_path: str = "./face_db"
     model_name: str = "VGG-Face"
     detector_backend: str = "opencv"
