@@ -13,8 +13,12 @@ interface FaceCameraProps {
   autoCapture?: boolean;
 }
 
-const TEAL   = '#00e5c0';
-const AMBER  = '#f5a623';
+// Overlay colors drawn on top of the (dark) video feed
+const IDLE     = 'rgba(255,255,255,0.65)';
+const DETECTED = '#fbbf24';
+const STABLE   = '#22c55e';
+
+type CamStatus = '' | 'detected' | 'stable';
 
 export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = false }: FaceCameraProps) {
   const { t } = useLang();
@@ -29,8 +33,8 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
 
   const [progress, setProgress] = useState(0);
   const [ready, setReady]       = useState(false);
-  const [label, setLabel]       = useState<{ status: string; conf: string; color: string }>({
-    status: '', conf: '', color: TEAL,
+  const [label, setLabel]       = useState<{ status: CamStatus; conf: string; color: string }>({
+    status: '', conf: '', color: STABLE,
   });
 
   const doCapture = useCallback(() => {
@@ -118,7 +122,7 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
       }
 
       const stable = detected && frameConf >= MIN_FRAME_CONFIDENCE && isFrontal && isStill;
-      const color  = stable ? TEAL : detected ? AMBER : TEAL;
+      const color  = stable ? STABLE : detected ? DETECTED : IDLE;
 
       if (detected !== lastDetectedRef.current) {
         lastDetectedRef.current = detected;
@@ -150,101 +154,24 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
 
       ctx.save();
 
-      // --- Scan line (when no stable face) ---
-      if (!stable) {
-        const period = 3000;
-        const scanT  = (performance.now() % period) / period;
-        const scanY  = H * 0.05 + H * 0.9 * scanT;
-        const grad   = ctx.createLinearGradient(0, 0, W, 0);
-        grad.addColorStop(0,   'transparent');
-        grad.addColorStop(0.5, color);
-        grad.addColorStop(1,   'transparent');
-        ctx.globalAlpha  = 0.5;
-        ctx.strokeStyle  = grad;
-        ctx.lineWidth    = 1.5;
-        ctx.shadowColor  = color;
-        ctx.shadowBlur   = 6;
-        ctx.beginPath();
-        ctx.moveTo(0, scanY);
-        ctx.lineTo(W, scanY);
-        ctx.stroke();
-        ctx.shadowBlur  = 0;
-        ctx.globalAlpha = 1;
-      }
-
-      // --- Face guide brackets (center of frame) ---
-      const gx = W * 0.2, gy = H * 0.08;
-      const gw = W * 0.6, gh = H * 0.84;
-      const bs = Math.min(W, H) * 0.06; // bracket arm length
-
-      ctx.strokeStyle  = color;
-      ctx.lineWidth    = 2;
-      ctx.globalAlpha  = stable ? 1 : detected ? 0.7 : 0.3;
-      ctx.shadowColor  = color;
-      ctx.shadowBlur   = stable ? 8 : 0;
-
-      // draw one bracket corner
-      const bracket = (x: number, y: number, dx: number, dy: number) => {
-        ctx.beginPath();
-        ctx.moveTo(x, y + dy * bs);
-        ctx.lineTo(x, y);
-        ctx.lineTo(x + dx * bs, y);
-        ctx.stroke();
-      };
-
-      bracket(gx,      gy,      1,  1);  // TL
-      bracket(gx + gw, gy,     -1,  1);  // TR
-      bracket(gx,      gy + gh, 1, -1);  // BL
-      bracket(gx + gw, gy + gh,-1, -1);  // BR
-
-      ctx.shadowBlur  = 0;
+      // --- Face guide: a centered oval that turns amber/green ---
+      const r = Math.min(W, H);
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = Math.max(2, r * 0.008);
       ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.ellipse(W / 2, H / 2, r * 0.3, r * 0.4, 0, 0, Math.PI * 2);
+      ctx.stroke();
 
       // --- Keypoint dots ---
       if (detected) {
-        const dots = [rightEye, leftEye, noseTip, mouth].filter(Boolean);
-        dots.forEach((p, i) => {
+        ctx.fillStyle = color;
+        [rightEye, leftEye, noseTip, mouth].forEach((p) => {
           if (!p) return;
-          const px = mx(p.x * W);
-          const py = my(p.y * H);
-          const delay = i * 0.4;
-          const pulse = 0.5 + 0.5 * Math.sin((performance.now() / 500) + delay);
-
-          ctx.fillStyle   = color;
-          ctx.shadowColor = color;
-          ctx.globalAlpha = 0.4 + 0.6 * pulse;
-          ctx.shadowBlur  = 6;
           ctx.beginPath();
-          ctx.arc(px, py, 3.5, 0, Math.PI * 2);
-          ctx.fill();
-
-          // glow ring
-          ctx.globalAlpha = 0.15 * pulse;
-          ctx.beginPath();
-          ctx.arc(px, py, 8, 0, Math.PI * 2);
+          ctx.arc(mx(p.x * W), my(p.y * H), 3, 0, Math.PI * 2);
           ctx.fill();
         });
-        ctx.shadowBlur  = 0;
-        ctx.globalAlpha = 1;
-      }
-
-      // --- Labels ---
-      ctx.font        = `500 9px 'DM Mono', monospace`;
-      ctx.fillStyle   = color;
-      ctx.globalAlpha = 0.75;
-
-      ctx.fillText('MESH', 10, 18);
-
-      const liveW = ctx.measureText('LIVE').width;
-      ctx.fillText('LIVE', W - liveW - 10, 18);
-
-      if (detected) {
-        const confStr = `${Math.round(frameConf * 100)}%`;
-        const confW   = ctx.measureText(confStr).width;
-        ctx.fillText(confStr, W - confW - 10, H - 10);
-
-        const stStr = stable ? 'LOCK' : 'SCAN';
-        ctx.fillText(stStr, 10, H - 10);
       }
 
       ctx.globalAlpha = 1;
@@ -253,7 +180,7 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
 
       // update label state only on changes (avoid re-render flood)
       const newColor  = color;
-      const newStatus = stable ? 'LOCK' : detected ? 'SCAN' : '';
+      const newStatus: CamStatus = stable ? 'stable' : detected ? 'detected' : '';
       const newConf   = detected ? `${Math.round(frameConf * 100)}%` : '';
       setLabel(prev =>
         prev.status !== newStatus || prev.conf !== newConf || prev.color !== newColor
@@ -276,7 +203,7 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
 
   return (
     <div className="cam-card">
-      <div style={{ position: 'relative', width: '100%', background: '#060a0d' }}>
+      <div className="cam-stage">
         <video
           ref={videoRef}
           style={{ display: 'block', width: '100%', transform: 'scaleX(-1)' }}
@@ -289,13 +216,7 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
         />
         {!ready && (
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            background: '#060a0d', color: 'var(--muted)',
-            fontFamily: 'var(--font-mono)', fontSize: 11,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-          }}>
+          <div className="cam-placeholder">
             {t.camera.starting}
           </div>
         )}
@@ -308,18 +229,19 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
       )}
 
       <div className="cam-bar">
-        <div className="sdot" style={{ background: label.color, boxShadow: `0 0 6px ${label.color}` }} />
+        <div className="sdot" />
         <span>{t.camera.active}</span>
         {label.status && (
-          <span style={{ marginLeft: 8, fontSize: 9, color: label.color, letterSpacing: '0.12em' }}>
-            {label.status}
+          <span className="cam-status" style={{ marginLeft: 'auto', color: label.status === 'stable' ? 'var(--success)' : 'var(--warn)' }}>
+            {label.status === 'stable' ? t.camera.statusStable : t.camera.statusDetected}
+            {label.conf && ` · ${label.conf}`}
           </span>
         )}
         {!autoCapture && (
           <button
             onClick={doCapture}
             className="btn-main"
-            style={{ margin: '0 0 0 auto', width: 'auto', padding: '6px 18px', marginBottom: 0 }}
+            style={{ margin: '0 0 0 auto', width: 'auto', padding: '6px 16px', fontSize: 14 }}
           >
             {t.camera.btnCapture}
           </button>

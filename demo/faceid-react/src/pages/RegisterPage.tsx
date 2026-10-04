@@ -151,8 +151,8 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
                 [t.register.labelModel,    result.model_name],
                 [t.register.labelDetector, result.detector_backend],
               ].map(([label, value]) => (
-                <div key={label as string} style={{ display: 'flex', gap: 12, marginBottom: 8, fontSize: 12 }}>
-                  <span style={{ color: 'var(--muted)', minWidth: 72, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>{label}</span>
+                <div key={label as string} style={{ display: 'flex', gap: 12, marginBottom: 8, fontSize: 14 }}>
+                  <span style={{ color: 'var(--muted)', minWidth: 80 }}>{label}</span>
                   <span>{value}</span>
                 </div>
               ))}
@@ -169,7 +169,6 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
               style={{ display: 'block', width: '100%', transform: 'scaleX(-1)' }}
             />
             <div className="cam-bar">
-              <div className="sdot" />
               <span>{t.register.photoCaptured}</span>
             </div>
           </div>

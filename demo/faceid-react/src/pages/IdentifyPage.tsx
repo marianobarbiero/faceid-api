@@ -69,8 +69,8 @@ export default function IdentifyPage() {
                 <p className="hint">{t.identify.hint}</p>
                 <div className="val-row">
                   {faceDetected
-                    ? <div className="vi ok">✓ &nbsp;{t.identify.faceDetected}</div>
-                    : <div className="vi warn">○ &nbsp;{t.identify.waitingFace}</div>
+                    ? <div className="vi ok">✓ {t.identify.faceDetected}</div>
+                    : <div className="vi warn">{t.identify.waitingFace}</div>
                   }
                 </div>
               </>
@@ -93,19 +93,19 @@ export default function IdentifyPage() {
             {status === 'done' && matches !== null && (
               <>
                 {frozenFrame && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16, padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, marginBottom: 16, padding: '10px 12px', background: 'var(--surface-alt)', borderRadius: 8 }}>
                     <img
                       src={`data:image/jpeg;base64,${frozenFrame}`}
                       alt="Foto enviada"
-                      style={{ width: '100%', maxWidth: 384, aspectRatio: '1', objectFit: 'cover', borderRadius: 4, transform: 'scaleX(-1)' }}
+                      style={{ width: '100%', maxWidth: 384, aspectRatio: '1', objectFit: 'cover', borderRadius: 8, transform: 'scaleX(-1)' }}
                     />
-                    <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t.identify.photoSent}</span>
+                    <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t.identify.photoSent}</span>
                   </div>
                 )}
                 {matches.length === 0 ? (
                   <div className="result-card bad">
                     <div className="result-name">{t.identify.noMatch}</div>
-                    <p style={{ fontSize: 12, color: 'var(--muted)' }}>{t.identify.noMatchSub}</p>
+                    <p style={{ fontSize: 14, color: 'var(--muted)' }}>{t.identify.noMatchSub}</p>
                   </div>
                 ) : (
                   matches.map((m, i) => (
