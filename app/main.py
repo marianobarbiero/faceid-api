@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     import numpy as np
 
     dummy = np.zeros((100, 100, 3), dtype=np.uint8)
+    t0 = time.perf_counter()
     try:
         DeepFace.represent(
             img_path=dummy,
@@ -40,6 +42,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         )
     except Exception:
         pass
+    t1 = time.perf_counter()
+
+    # The age/gender/emotion/race models are otherwise loaded by the first /analyze,
+    # which then takes 15-20 s; run one analysis now so the demo is fluid from the start
+    if settings.warmup_analyze:
+        try:
+            DeepFace.analyze(
+                img_path=dummy,
+                actions=["age", "gender", "emotion", "race"],
+                detector_backend=settings.detector_backend,
+                enforce_detection=False,
+                silent=True,
+            )
+        except Exception:
+            pass
+    logging.getLogger(__name__).info(
+        "warm-up done — recognition: %.1fs | analysis: %.1fs",
+        t1 - t0,
+        time.perf_counter() - t1,
+    )
 
     # Load embeddings into memory
     from app.db.database import SessionLocal

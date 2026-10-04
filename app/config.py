@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     cache_ttl: int = 300
     cache_maxsize: int = 256
     anti_spoofing: bool = False
+    # Load the /analyze models at startup instead of on the first request
+    warmup_analyze: bool = True
 
     model_config = {"env_file": ".env"}
 
