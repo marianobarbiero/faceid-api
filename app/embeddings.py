@@ -18,6 +18,7 @@ SUPPORTED_METRICS = ("cosine", "euclidean", "euclidean_l2")
 class EmbeddingEntry:
     registration_id: int
     email: str | None
+    photo_id: int | None  # None for the photo taken at /register
     vector: np.ndarray  # raw embedding (needed for plain euclidean)
     unit: np.ndarray  # L2-normalized embedding (cosine / euclidean_l2)
 
@@ -52,21 +53,31 @@ def get_threshold(model_name: str, distance_metric: str, override: float | None 
 
 
 class EmbeddingStore:
+    """In-memory index of every enrollment photo; a person may have several."""
+
     def __init__(self) -> None:
         self._entries: list[EmbeddingEntry] = []
 
     def load(self, db: Session) -> None:
-        from app.db.models import FaceRegistration
+        from app.db.models import FacePhoto, FaceRegistration
 
         records = db.query(FaceRegistration).filter(FaceRegistration.is_active == True).all()
-        self._entries = [
-            _entry(r.id, r.email, r.embedding)
-            for r in records
-            if r.embedding
+        emails = {r.id: r.email for r in records}
+        self._entries = [_entry(r.id, r.email, r.embedding) for r in records if r.embedding]
+        photos = db.query(FacePhoto).filter(FacePhoto.registration_id.in_(emails)).all() if emails else []
+        self._entries += [
+            _entry(p.registration_id, emails[p.registration_id], p.embedding, p.id) for p in photos if p.embedding
         ]
 
-    def add(self, registration_id: int, email: str | None, embedding: list) -> None:
-        self._entries.append(_entry(registration_id, email, embedding))
+    def add(self, registration_id: int, email: str | None, embedding: list, photo_id: int | None = None) -> None:
+        self._entries.append(_entry(registration_id, email, embedding, photo_id))
+
+    def distance_to_person(self, query_embedding: list, registration_id: int, distance_metric: str) -> float | None:
+        """Closest distance between the query and any photo of the given person."""
+        entries = [e for e in self._entries if e.registration_id == registration_id]
+        if not entries:
+            return None
+        return float(_distances(entries, np.array(query_embedding, dtype=np.float32), distance_metric).min())
 
     def search(
         self,
@@ -83,35 +94,42 @@ class EmbeddingStore:
         threshold = get_threshold(model_name, distance_metric, threshold_override)
         distances = _distances(self._entries, np.array(query_embedding, dtype=np.float32), distance_metric)
 
-        best = int(np.argmin(distances))
-        # Logged for every search so the threshold can be calibrated from real attempts
+        # Each person is represented by their closest photo
+        closest: dict[int, tuple[float, EmbeddingEntry]] = {}
+        for entry, dist in zip(self._entries, distances.tolist()):
+            current = closest.get(entry.registration_id)
+            if current is None or dist < current[0]:
+                closest[entry.registration_id] = (dist, entry)
+        ranked = sorted(closest.values(), key=lambda item: item[0])
+
+        best_dist, best_entry = ranked[0]
+        second_dist = ranked[1][0] if len(ranked) > 1 else None
+        # Logged for every search so the threshold (and a future margin rule) can be calibrated
         logger.info(
-            "identify best match: id=%s distance=%.4f threshold=%.4f metric=%s matched=%s",
-            self._entries[best].registration_id,
-            float(distances[best]),
+            "identify best match: id=%s photo=%s distance=%.4f second=%s threshold=%.4f metric=%s matched=%s",
+            best_entry.registration_id,
+            best_entry.photo_id or "main",
+            best_dist,
+            f"{second_dist:.4f}" if second_dist is not None else "-",
             threshold,
             distance_metric,
-            bool(distances[best] <= threshold),
+            best_dist <= threshold,
         )
 
         # Score is reported as 1 - distance (higher is better; match iff score >= threshold)
         score_threshold = round(1.0 - threshold, 6)
-        results = [
-            SearchResult(
-                email=self._entries[i].email,
-                score=round(1.0 - float(dist), 6),
-                threshold=score_threshold,
-            )
-            for i, dist in enumerate(distances)
-            if float(dist) <= threshold
+        return [
+            SearchResult(email=entry.email, score=round(1.0 - dist, 6), threshold=score_threshold)
+            for dist, entry in ranked
+            if dist <= threshold
         ]
-        results.sort(key=lambda r: r.score, reverse=True)
-        return results
 
 
-def _entry(registration_id: int, email: str | None, embedding: list) -> EmbeddingEntry:
+def _entry(registration_id: int, email: str | None, embedding: list, photo_id: int | None = None) -> EmbeddingEntry:
     vector = np.array(embedding, dtype=np.float32)
-    return EmbeddingEntry(registration_id=registration_id, email=email, vector=vector, unit=_normalize(vector))
+    return EmbeddingEntry(
+        registration_id=registration_id, email=email, photo_id=photo_id, vector=vector, unit=_normalize(vector)
+    )
 
 
 def _distances(entries: list[EmbeddingEntry], query: np.ndarray, distance_metric: str) -> np.ndarray:

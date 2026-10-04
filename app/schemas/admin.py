@@ -12,6 +12,7 @@ class UserSummary(BaseModel):
     detector_backend: str
     is_active: bool
     created_at: datetime
+    photos_count: int = 1
 
 
 class UserListResponse(BaseModel):

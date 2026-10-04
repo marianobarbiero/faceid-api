@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, JSON, LargeBinary, String, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, JSON, LargeBinary, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -35,6 +35,27 @@ class FaceRegistration(Base):
     model_name: Mapped[str] = mapped_column(String(64))
     detector_backend: Mapped[str] = mapped_column(String(64))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class FacePhoto(Base):
+    """Extra enrollment photo of a registered person (glasses, slight angle, ...).
+
+    The photo taken at /register stays on FaceRegistration; these are additional ones.
+    /identify compares against every photo and keeps each person's closest one.
+    """
+
+    __tablename__ = "face_photos"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    registration_id: Mapped[int] = mapped_column(ForeignKey("face_registrations.id"), index=True)
+    image: Mapped[bytes] = mapped_column(LargeBinary)
+    image_path: Mapped[str] = mapped_column(String(512))
+    embedding: Mapped[list] = mapped_column(JSON)
+    model_name: Mapped[str] = mapped_column(String(64))
+    detector_backend: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

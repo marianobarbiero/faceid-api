@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     distance_metric: str = "cosine"
     # Max distance (in distance_metric units) to accept a match; None uses DeepFace's default
     match_threshold: float | None = None
+    # Max distance between a new enrollment photo and the person's existing photos.
+    # Looser than match_threshold, but stops adding someone else's face to a person.
+    enroll_max_distance: float = 0.50
+    max_photos_per_person: int = 10
     cache_ttl: int = 300
     cache_maxsize: int = 256
     anti_spoofing: bool = False
