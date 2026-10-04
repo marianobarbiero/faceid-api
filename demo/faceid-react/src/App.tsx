@@ -1,13 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import RegisterPage from './pages/RegisterPage';
 import IdentifyPage from './pages/IdentifyPage';
 import HomePage from './pages/HomePage';
+import AdminPage from './pages/AdminPage';
 import { useLang } from './context/LangContext';
 
-type Page = 'home' | 'register' | 'identify';
+type Page = 'home' | 'register' | 'identify' | 'admin';
+
+// The backoffice is not linked from the menu; it is reached directly at /back
+const ADMIN_PATH = '/back';
+
+function pageFromLocation(): Page {
+  return window.location.pathname.replace(/\/+$/, '') === ADMIN_PATH ? 'admin' : 'home';
+}
 
 export default function App() {
-  const [page, setPage] = useState<Page>('home');
+  const [page, setPageState] = useState<Page>(pageFromLocation);
+
+  const setPage = (next: Page) => {
+    const path = next === 'admin' ? ADMIN_PATH : '/';
+    if (window.location.pathname !== path) window.history.pushState(null, '', path);
+    setPageState(next);
+  };
+
+  useEffect(() => {
+    const onPopState = () => setPageState(pageFromLocation());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const { t, lang, setLang } = useLang();
 
   return (
@@ -30,6 +50,7 @@ export default function App() {
         {page === 'home' && <HomePage onRegister={() => setPage('register')} onIdentify={() => setPage('identify')} />}
         {page === 'register' && <RegisterPage onIdentify={() => setPage('identify')} />}
         {page === 'identify' && <IdentifyPage />}
+        {page === 'admin' && <AdminPage />}
       </main>
 
       <nav className="bottom-nav">

@@ -50,7 +50,10 @@ Las dos keys **tienen que ser iguales**: el frontend manda `VITE_API_KEY` en el 
 
    ```env
    API_KEY=<tu-key>
+   ADMIN_API_KEY=<otra-key-distinta>
    ```
+
+   `ADMIN_API_KEY` habilita el backoffice. Tiene que ser **distinta** de `API_KEY` y **no** va en el `.env` del frontend: se ingresa a mano en la pantalla de login. Si la dejás vacía, el backoffice queda deshabilitado.
 
 3. Frontend — `demo/faceid-react/.env` (copiá `demo/faceid-react/.env.example`):
 
@@ -125,3 +128,7 @@ curl https://<tu-subdominio>.trycloudflare.com/api/health
 ```
 
 Después abrí la URL en el navegador. La cámara funciona porque el túnel sirve por HTTPS.
+
+## Backoffice
+
+`https://<tu-subdominio>.trycloudflare.com/back` muestra los usuarios registrados (foto, nombre, email, ID externo, estado y fecha), con búsqueda y paginado. No aparece en el menú de la demo. Pide la `ADMIN_API_KEY`, que queda guardada solo en esa pestaña del navegador hasta que la cierres o toques "Salir".
