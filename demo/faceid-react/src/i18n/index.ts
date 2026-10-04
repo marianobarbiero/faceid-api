@@ -2,7 +2,12 @@ import es from './es';
 import en from './en';
 
 export type Lang = 'es' | 'en';
-export type Translations = typeof es;
+// Widen the `as const` string literals to `string` so other languages share the shape of es.ts
+type WidenLiterals<T> = T extends string
+  ? string
+  : { readonly [K in keyof T]: WidenLiterals<T[K]> };
+
+export type Translations = WidenLiterals<typeof es>;
 
 export const translations: Record<Lang, Translations> = { es, en };
 
