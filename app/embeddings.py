@@ -72,6 +72,12 @@ class EmbeddingStore:
     def add(self, registration_id: int, email: str | None, embedding: list, photo_id: int | None = None) -> None:
         self._entries.append(_entry(registration_id, email, embedding, photo_id))
 
+    def remove(self, registration_id: int) -> int:
+        """Forget every photo of a person; returns how many entries were removed."""
+        before = len(self._entries)
+        self._entries = [e for e in self._entries if e.registration_id != registration_id]
+        return before - len(self._entries)
+
     def distance_to_person(self, query_embedding: list, registration_id: int, distance_metric: str) -> float | None:
         """Closest distance between the query and any photo of the given person."""
         entries = [e for e in self._entries if e.registration_id == registration_id]

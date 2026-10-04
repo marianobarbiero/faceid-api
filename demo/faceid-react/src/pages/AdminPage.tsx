@@ -1,25 +1,35 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  deleteUser,
   errorMessage,
   fetchUserImageUrl,
   getAdminKey,
+  getUser,
   isUnauthorized,
   listUsers,
   setAdminKey,
+  type UserDetail,
   type UserListResponse,
 } from '../api/admin';
 import { useLang } from '../context/LangContext';
 
 const PAGE_SIZE = 25;
 
-function UserThumb({ id, alt }: { id: number; alt: string }) {
+interface UserThumbProps {
+  id: number;
+  alt: string;
+  photoId?: number | null;
+  className?: string;
+}
+
+function UserThumb({ id, alt, photoId = null, className = 'user-thumb' }: UserThumbProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let url: string | null = null;
     let cancelled = false;
-    fetchUserImageUrl(id)
+    fetchUserImageUrl(id, photoId)
       .then((objectUrl) => {
         url = objectUrl;
         if (cancelled) URL.revokeObjectURL(objectUrl);
@@ -30,10 +40,106 @@ function UserThumb({ id, alt }: { id: number; alt: string }) {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [id]);
+  }, [id, photoId]);
 
-  if (src) return <img className="user-thumb" src={src} alt={alt} loading="lazy" />;
-  return <div className="user-thumb placeholder">{failed ? '✕' : ''}</div>;
+  if (src) return <img className={className} src={src} alt={alt} loading="lazy" />;
+  return <div className={`${className} placeholder`}>{failed ? '✕' : ''}</div>;
+}
+
+interface UserDetailModalProps {
+  userId: number;
+  formatDate: (iso: string) => string;
+  onClose: () => void;
+  onDeleted: () => void;
+}
+
+function UserDetailModal({ userId, formatDate, onClose, onDeleted }: UserDetailModalProps) {
+  const { t } = useLang();
+  const [detail, setDetail] = useState<UserDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    getUser(userId).then(setDetail).catch((err: unknown) => setError(errorMessage(err)));
+  }, [userId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !deleting && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, deleting]);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteUser(userId);
+      onDeleted();
+    } catch (err: unknown) {
+      setError(errorMessage(err));
+      setDeleting(false);
+      setConfirming(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={() => !deleting && onClose()}>
+      <div className="modal panel" role="dialog" aria-modal="true" aria-label={t.admin.detailTitle} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div className="panel-title" style={{ margin: 0 }}>{t.admin.detailTitle}</div>
+          <button className="btn-ghost modal-close" onClick={onClose} disabled={deleting}>{t.admin.btnClose}</button>
+        </div>
+
+        {error && <div className="banner err">✕ {error}</div>}
+        {!detail && !error && <div className="loading-row"><div className="spinner" /><span>{t.admin.loading}</span></div>}
+
+        {detail && (
+          <>
+            <div className="detail-info">
+              {[
+                ['ID', `#${detail.id}`],
+                [t.admin.colName, detail.full_name],
+                [t.admin.colEmail, detail.email ?? '—'],
+                [t.admin.colExternalId, detail.external_id ?? '—'],
+                [t.admin.colModel, `${detail.model_name} · ${detail.detector_backend}`],
+                [t.admin.colStatus, detail.is_active ? t.admin.active : t.admin.inactive],
+                [t.admin.colCreated, formatDate(detail.created_at)],
+              ].map(([label, value]) => (
+                <div key={label} className="detail-row"><span>{label}</span><strong>{value}</strong></div>
+              ))}
+            </div>
+
+            <div className="stat-label" style={{ margin: '18px 0 8px' }}>{t.admin.photos} ({detail.photos.length})</div>
+            <div className="photo-grid">
+              {detail.photos.map((p) => (
+                <figure key={p.photo_id ?? 'main'}>
+                  <UserThumb id={detail.id} photoId={p.photo_id} alt={detail.full_name} className="photo-tile" />
+                  <figcaption>{p.photo_id == null ? t.admin.mainPhoto : t.admin.extraPhoto}<br />{formatDate(p.created_at)}</figcaption>
+                </figure>
+              ))}
+            </div>
+
+            <div className="danger-zone">
+              {!confirming ? (
+                <button className="btn-danger" onClick={() => setConfirming(true)}>{t.admin.btnDelete}</button>
+              ) : (
+                <>
+                  <p className="hint" style={{ marginBottom: 10 }}>{t.admin.deleteWarning}</p>
+                  <div className="danger-actions">
+                    <button className="btn-danger" onClick={handleDelete} disabled={deleting}>
+                      {deleting ? t.admin.deleting : t.admin.btnConfirmDelete}
+                    </button>
+                    <button className="btn-ghost" onClick={() => setConfirming(false)} disabled={deleting}>{t.admin.btnCancel}</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
@@ -96,6 +202,10 @@ export default function AdminPage() {
   const [data, setData] = useState<UserListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Only the latest request may update the table (an older, slower one must not overwrite it)
+  const requestSeq = useRef(0);
 
   const logout = useCallback(() => {
     setAdminKey(null);
@@ -113,15 +223,18 @@ export default function AdminPage() {
   }, [search]);
 
   const load = useCallback(async () => {
+    const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
     try {
-      setData(await listUsers({ q: query, limit: PAGE_SIZE, offset }));
+      const result = await listUsers({ q: query, limit: PAGE_SIZE, offset });
+      if (seq === requestSeq.current) setData(result);
     } catch (err: unknown) {
+      if (seq !== requestSeq.current) return;
       if (isUnauthorized(err)) logout();
       else setError(errorMessage(err));
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [query, offset, logout]);
 
@@ -166,6 +279,7 @@ export default function AdminPage() {
           </div>
 
           {error && <div className="banner err">✕ &nbsp;{error}</div>}
+          {notice && <div className="banner ok">✓ {notice}</div>}
           {loading && !data && (
             <div className="loading-row"><div className="spinner" /><span>{t.admin.loading}</span></div>
           )}
@@ -189,7 +303,14 @@ export default function AdminPage() {
               </thead>
               <tbody>
                 {data.items.map((user) => (
-                  <tr key={user.id}>
+                  <tr
+                    key={user.id}
+                    className="clickable"
+                    tabIndex={0}
+                    title={t.admin.viewDetail}
+                    onClick={() => setSelected(user.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && setSelected(user.id)}
+                  >
                     <td><UserThumb id={user.id} alt={user.full_name} /></td>
                     <td data-label={t.admin.colName}>
                       <strong>{user.full_name}</strong>
@@ -231,6 +352,19 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+      )}
+
+      {selected != null && (
+        <UserDetailModal
+          userId={selected}
+          formatDate={formatDate}
+          onClose={() => setSelected(null)}
+          onDeleted={() => {
+            setSelected(null);
+            setNotice(t.admin.deleted);
+            load();
+          }}
+        />
       )}
     </div>
   );

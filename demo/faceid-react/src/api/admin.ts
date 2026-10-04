@@ -61,9 +61,28 @@ export async function listUsers(params: ListUsersParams = {}): Promise<UserListR
   return res.data;
 }
 
+export interface PhotoInfo {
+  photo_id: number | null; // null = photo taken at registration
+  created_at: string;
+}
+
+export interface UserDetail extends UserSummary {
+  photos: PhotoInfo[];
+}
+
+export async function getUser(id: number): Promise<UserDetail> {
+  const res = await admin.get<UserDetail>(`/users/${id}`);
+  return res.data;
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await admin.delete(`/users/${id}`);
+}
+
 // <img> cannot send the X-Admin-Key header, so images are fetched as blobs
-export async function fetchUserImageUrl(id: number): Promise<string> {
-  const res = await admin.get<Blob>(`/users/${id}/image`, { responseType: 'blob' });
+export async function fetchUserImageUrl(id: number, photoId: number | null = null): Promise<string> {
+  const path = photoId == null ? `/users/${id}/image` : `/users/${id}/photos/${photoId}/image`;
+  const res = await admin.get<Blob>(path, { responseType: 'blob' });
   return URL.createObjectURL(res.data);
 }
 
