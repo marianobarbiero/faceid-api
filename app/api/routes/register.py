@@ -11,7 +11,7 @@ from app.services.photos import (
     TooManyPhotosError,
     add_photo,
 )
-from app.services.register import DuplicateEmailError, register_face
+from app.services.register import DuplicateEmailError, FaceAlreadyRegisteredError, register_face
 
 router = APIRouter()
 
@@ -26,6 +26,18 @@ def register(
         return register_face(body.img, body.full_name, body.email, body.external_id, db)
     except DuplicateEmailError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Email already registered: {e}")
+    except FaceAlreadyRegisteredError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "face_already_registered",
+                "message": "This face is already registered",
+                "registration_id": e.match.registration_id,
+                "email": e.match.email,
+                "score": e.match.score,
+                "threshold": e.match.threshold,
+            },
+        )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
 

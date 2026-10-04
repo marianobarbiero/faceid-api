@@ -71,6 +71,9 @@ const es = {
     photoAdded: 'Foto agregada',
     photoMismatch: 'La foto no se parece lo suficiente a las anteriores. Probá de frente y con buena luz.',
     btnCancel: 'Cancelar',
+    alreadyTitle: 'Ya estás registrado',
+    alreadyText: 'Esta cara ya corresponde a',
+    similarity: 'Similitud',
   },
   analyze: {
     tag: 'Atributos',

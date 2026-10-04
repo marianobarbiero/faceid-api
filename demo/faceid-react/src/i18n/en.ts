@@ -71,6 +71,9 @@ const en = {
     photoAdded: 'Photo added',
     photoMismatch: 'The photo does not look enough like the previous ones. Try facing the camera in good light.',
     btnCancel: 'Cancel',
+    alreadyTitle: 'You are already registered',
+    alreadyText: 'This face already belongs to',
+    similarity: 'Similarity',
   },
   analyze: {
     tag: 'Attributes',

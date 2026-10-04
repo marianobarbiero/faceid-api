@@ -25,6 +25,7 @@ class EmbeddingEntry:
 
 @dataclass
 class SearchResult:
+    registration_id: int
     email: str | None
     score: float
     threshold: float
@@ -125,7 +126,12 @@ class EmbeddingStore:
         # Score is reported as 1 - distance (higher is better; match iff score >= threshold)
         score_threshold = round(1.0 - threshold, 6)
         return [
-            SearchResult(email=entry.email, score=round(1.0 - dist, 6), threshold=score_threshold)
+            SearchResult(
+                registration_id=entry.registration_id,
+                email=entry.email,
+                score=round(1.0 - dist, 6),
+                threshold=score_threshold,
+            )
             for dist, entry in ranked
             if dist <= threshold
         ]
