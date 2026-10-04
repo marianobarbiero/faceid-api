@@ -42,7 +42,9 @@ def identify_face(img: str, db: Session) -> IdentifyResponse:
         return IdentifyResponse(matches=[])
 
     query_embedding = representations[0]["embedding"]
-    results = embedding_store.search(query_embedding, settings.model_name, settings.distance_metric)
+    results = embedding_store.search(
+        query_embedding, settings.model_name, settings.distance_metric, settings.match_threshold
+    )
     t3 = time.perf_counter()
 
     matches = [
