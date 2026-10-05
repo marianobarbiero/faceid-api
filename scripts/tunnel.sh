@@ -77,10 +77,11 @@ mkdir -p "$LOG_DIR"
 
 if [ -n "$WSL_DISTRO" ]; then
   echo "==> Starting backend in WSL ($WSL_DISTRO) on 127.0.0.1:$BACKEND_PORT (log: logs/backend.log)"
-  # MSYS_NO_PATHCONV: keep Git Bash from rewriting the Linux paths in the command
+  # MSYS_NO_PATHCONV: keep Git Bash from rewriting the Linux paths in the command.
+  # The log is written from inside Linux: wsl.exe relays stdout and stderr separately,
+  # and redirecting both on the Windows side makes them overwrite each other's lines.
   MSYS_NO_PATHCONV=1 wsl.exe -d "$WSL_DISTRO" --cd "$(cygpath -w "$ROOT_DIR")" -- bash -c \
-    "source ~/faceid-env.sh && exec python -m uvicorn app.main:app --host 127.0.0.1 --port $BACKEND_PORT --workers 1" \
-    >"$LOG_DIR/backend.log" 2>&1 &
+    "source ~/faceid-env.sh && exec python -m uvicorn app.main:app --host 127.0.0.1 --port $BACKEND_PORT --workers 1 > logs/backend.log 2>&1" &
 else
   echo "==> Starting backend on 127.0.0.1:$BACKEND_PORT (log: logs/backend.log)"
   (cd "$ROOT_DIR" && exec "$PYTHON" -m uvicorn app.main:app \
