@@ -1,5 +1,12 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig, type ProxyOptions } from 'vite'
 import react from '@vitejs/plugin-react'
+
+// The MediaPipe WASM must match the JS bundled from node_modules; an unversioned CDN URL
+// serves the latest release and breaks with a LinkError whenever MediaPipe publishes one
+const mediapipeVersion: string = JSON.parse(
+  readFileSync(new URL('./node_modules/@mediapipe/tasks-vision/package.json', import.meta.url), 'utf8'),
+).version
 
 // Headers required for SharedArrayBuffer (MediaPipe WASM)
 const crossOriginHeaders = {
@@ -33,6 +40,7 @@ const allowedHosts = [
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: { __MEDIAPIPE_VERSION__: JSON.stringify(mediapipeVersion) },
   css: { devSourcemap: false },
   server: {
     host: true,
