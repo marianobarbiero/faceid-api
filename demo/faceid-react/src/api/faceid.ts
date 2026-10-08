@@ -90,3 +90,16 @@ export async function addPhoto(registrationId: number, img: string): Promise<Add
   const res = await api.post<AddPhotoResponse>(`/register/${registrationId}/photos`, { img });
   return res.data;
 }
+
+export interface ApiInfo {
+  model_name: string;
+  detector_backend: string;
+  distance_metric: string;
+  match_threshold: number;
+  anti_spoofing: boolean;
+}
+
+export async function getInfo(): Promise<ApiInfo> {
+  const res = await api.get<ApiInfo>('/info');
+  return res.data;
+}

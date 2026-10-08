@@ -13,7 +13,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-from app.api.routes import admin, analyze, detect, identify, register, verify
+from app.api.routes import admin, analyze, detect, identify, info, register, verify
 from app.config import settings
 from app.db.database import Base, engine
 
@@ -73,6 +73,7 @@ app.include_router(identify.router)
 app.include_router(analyze.router)
 app.include_router(detect.router)
 app.include_router(admin.router)
+app.include_router(info.router)
 
 
 @app.get("/health")
