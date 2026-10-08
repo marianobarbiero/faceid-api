@@ -20,3 +20,12 @@ class UserListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class PhotoInfo(BaseModel):
+    photo_id: int | None  # None for the photo taken at /register
+    created_at: datetime
+
+
+class UserDetail(UserSummary):
+    photos: list[PhotoInfo]

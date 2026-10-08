@@ -11,6 +11,7 @@ const PATHS = {
   chart: <><path d="M3 3v18h18" /><path d="M8 16v-4M13 16V8M18 16v-7" /></>,
   upload: <><path d="M12 15V3M7 8l5-5 5 5" /><path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" /></>,
   camera: <><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" /><circle cx="12" cy="13" r="3" /></>,
+  shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></>,
   globe: (
     <>
       <circle cx="12" cy="12" r="10" />

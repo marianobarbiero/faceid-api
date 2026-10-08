@@ -47,6 +47,14 @@ export default function App() {
           <button className={`nav-btn ${lang === 'es' ? 'active' : ''}`} onClick={() => setLang('es')}>ES</button>
           <button className={`nav-btn ${lang === 'en' ? 'active' : ''}`} onClick={() => setLang('en')}>EN</button>
         </nav>
+        <button
+          className={`header-admin ${page === 'admin' ? 'active' : ''}`}
+          onClick={() => setPage('admin')}
+          title={t.nav.backoffice}
+          aria-label={t.nav.backoffice}
+        >
+          <Icon name="shield" size={18} /><span>{t.nav.backoffice}</span>
+        </button>
       </header>
 
       <main>
