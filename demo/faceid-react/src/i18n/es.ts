@@ -145,6 +145,9 @@ const es = {
   },
   camera: {
     starting: 'Iniciando cámara…',
+    errorPermission: 'Sin permiso para usar la cámara. Habilitalo en la configuración del navegador y recargá la página.',
+    errorNoCamera: 'No se encontró una cámara disponible (o la está usando otra aplicación).',
+    errorInit: 'No se pudo iniciar la detección de caras. Recargá la página para reintentar.',
     active: 'Cámara activa',
     btnCapture: 'Capturar',
     statusDetected: 'Rostro detectado',

@@ -145,6 +145,9 @@ const en = {
   },
   camera: {
     starting: 'Starting camera…',
+    errorPermission: 'No permission to use the camera. Allow it in the browser settings and reload the page.',
+    errorNoCamera: 'No camera available (or another app is using it).',
+    errorInit: 'Could not start face detection. Reload the page to try again.',
     active: 'Camera on',
     btnCapture: 'Capture',
     statusDetected: 'Face detected',

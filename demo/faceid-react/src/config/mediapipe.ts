@@ -1,3 +1,8 @@
+declare const __MEDIAPIPE_VERSION__: string;
+
+// Pinned to the installed package version (injected by vite.config.ts)
+export const MP_WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${__MEDIAPIPE_VERSION__}/wasm`;
+
 const MODEL_URLS: Record<string, string> = {
   short_range: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
   full_range:  'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite',

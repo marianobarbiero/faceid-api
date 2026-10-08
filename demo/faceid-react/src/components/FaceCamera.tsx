@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
 import {
-  MP_MODEL_URL, MP_DELEGATE, MP_MIN_DETECTION, MP_MIN_SUPPRESS,
+  MP_MODEL_URL, MP_WASM_URL, MP_DELEGATE, MP_MIN_DETECTION, MP_MIN_SUPPRESS,
   AUTO_CAPTURE_MS, CAPTURE_QUALITY, MIN_FRAME_CONFIDENCE,
   MAX_MOVEMENT, MAX_FACE_ASYMMETRY,
 } from '../config/mediapipe';
@@ -33,6 +33,7 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
 
   const [progress, setProgress] = useState(0);
   const [ready, setReady]       = useState(false);
+  const [initError, setInitError] = useState<'permission' | 'noCamera' | 'init' | null>(null);
   const [label, setLabel]       = useState<{ status: CamStatus; conf: string; color: string }>({
     status: '', conf: '', color: STABLE,
   });
@@ -51,15 +52,21 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
     let stream: MediaStream;
 
     async function init() {
-      const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
-      );
-      detectorRef.current = await FaceDetector.createFromOptions(vision, {
-        baseOptions: { modelAssetPath: MP_MODEL_URL, delegate: MP_DELEGATE },
+      const vision = await FilesetResolver.forVisionTasks(MP_WASM_URL);
+      const create = (delegate: 'GPU' | 'CPU') => FaceDetector.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MP_MODEL_URL, delegate },
         runningMode: 'VIDEO',
         minDetectionConfidence: MP_MIN_DETECTION,
         minSuppressionThreshold: MP_MIN_SUPPRESS,
       });
+      try {
+        detectorRef.current = await create(MP_DELEGATE);
+      } catch (err) {
+        // Some phones' GPUs don't support MediaPipe's WebGL path: retry on the CPU
+        if (MP_DELEGATE !== 'GPU') throw err;
+        console.warn('MediaPipe GPU delegate failed, falling back to CPU', err);
+        detectorRef.current = await create('CPU');
+      }
 
       stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
@@ -191,7 +198,15 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
       animFrameRef.current = requestAnimationFrame(detect);
     }
 
-    init().catch(console.error);
+    init().catch((err: unknown) => {
+      console.error(err);
+      const name = err instanceof DOMException ? err.name : '';
+      setInitError(
+        name === 'NotAllowedError' ? 'permission'
+        : name === 'NotFoundError' || name === 'NotReadableError' ? 'noCamera'
+        : 'init'
+      );
+    });
 
     return () => {
       cancelAnimationFrame(animFrameRef.current);
@@ -217,7 +232,10 @@ export default function FaceCamera({ onCapture, onFaceDetected, autoCapture = fa
         />
         {!ready && (
           <div className="cam-placeholder">
-            {t.camera.starting}
+            {initError === 'permission' ? t.camera.errorPermission
+              : initError === 'noCamera' ? t.camera.errorNoCamera
+              : initError === 'init' ? t.camera.errorInit
+              : t.camera.starting}
           </div>
         )}
       </div>
