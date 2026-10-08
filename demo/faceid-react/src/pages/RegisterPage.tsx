@@ -22,6 +22,7 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
   const [photosCount, setPhotosCount] = useState(1);
   const [addNotice, setAddNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [adding, setAdding] = useState(false);
+  const [duplicate, setDuplicate] = useState<{ email: string | null; score: number } | null>(null);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +35,7 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
     setCapturedImg(base64);
     setLoading(true);
     setError(null);
+    setDuplicate(null);
     try {
       const res = await registerFace({
         img: base64,
@@ -43,8 +45,13 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
       setResult(res);
       setStep('result');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Registration failed.';
-      setError(msg);
+      const detail = axios.isAxiosError(err) ? err.response?.data?.detail : null;
+      if (detail?.code === 'face_already_registered') {
+        // Keep the frozen frame (camera stays off) so it doesn't auto-capture again
+        setDuplicate({ email: detail.email, score: detail.score });
+        return;
+      }
+      setError(typeof detail === 'string' ? detail : err instanceof Error ? err.message : 'Registration failed.');
       setCapturedImg(null);
     } finally {
       setLoading(false);
@@ -70,6 +77,7 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
   const handleReset = () => {
     setPhotosCount(1);
     setAddNotice(null);
+    setDuplicate(null);
     setStep('form');
     setFullName('John Doe');
     setEmail(`${crypto.randomUUID()}@example.com`);
@@ -151,7 +159,20 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
                 </div>
               )}
               {error && <div className="banner err">✕ &nbsp;{error}</div>}
-              {!loading && (
+              {duplicate && (
+                <div className="duplicate-box">
+                  <div className="step-title">{t.register.alreadyTitle}</div>
+                  <p className="hint" style={{ margin: '4px 0 8px' }}>
+                    {t.register.alreadyText} <strong>{duplicate.email ?? '—'}</strong>
+                  </p>
+                  <div className="hint" style={{ margin: '0 0 12px' }}>
+                    {t.register.similarity}: <strong>{Math.round(duplicate.score * 100)}%</strong>
+                  </div>
+                  <button className="btn-main" onClick={onIdentify}>{t.register.btnGoIdentify}</button>
+                  <button className="btn-ghost" onClick={() => { setDuplicate(null); setCapturedImg(null); setStep('form'); }}>{t.register.btnBack}</button>
+                </div>
+              )}
+              {!loading && !duplicate && (
                 <button className="btn-ghost" onClick={() => setStep('form')}>{t.register.btnBack}</button>
               )}
             </div>

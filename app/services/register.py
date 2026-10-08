@@ -9,12 +9,20 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db.models import FaceRegistration
-from app.embeddings import embedding_store
+from app.embeddings import SearchResult, embedding_store
 from app.schemas.register import RegisterResponse
 
 
 class DuplicateEmailError(Exception):
     pass
+
+
+class FaceAlreadyRegisteredError(Exception):
+    """The face matches someone already registered (same threshold as /identify)."""
+
+    def __init__(self, match: SearchResult) -> None:
+        super().__init__(f"face already registered as {match.email}")
+        self.match = match
 
 
 def _decode_image(img_b64: str) -> bytes:
@@ -51,6 +59,14 @@ def register_face(body_img: str, full_name: str, email: str | None, external_id:
         os.remove(image_path)
         raise
     embedding = representations[0]["embedding"] if representations else []
+
+    if settings.duplicate_check and embedding:
+        matches = embedding_store.search(
+            embedding, settings.model_name, settings.distance_metric, settings.match_threshold
+        )
+        if matches:
+            os.remove(image_path)
+            raise FaceAlreadyRegisteredError(matches[0])
 
     record = FaceRegistration(
         full_name=full_name,

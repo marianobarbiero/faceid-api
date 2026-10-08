@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     # Max distance between a new enrollment photo and the person's existing photos.
     # Looser than match_threshold, but stops adding someone else's face to a person.
     enroll_max_distance: float = 0.50
+    # Reject /register when the face already matches a registered person
+    duplicate_check: bool = True
     max_photos_per_person: int = 10
     cache_ttl: int = 300
     cache_maxsize: int = 256
