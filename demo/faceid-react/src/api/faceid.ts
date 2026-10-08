@@ -78,3 +78,15 @@ export async function analyzeFace(img: string): Promise<AnalyzeResponse> {
   });
   return res.data;
 }
+
+export interface AddPhotoResponse {
+  photo_id: number;
+  registration_id: number;
+  photos_count: number;
+  distance: number;
+}
+
+export async function addPhoto(registrationId: number, img: string): Promise<AddPhotoResponse> {
+  const res = await api.post<AddPhotoResponse>(`/register/${registrationId}/photos`, { img });
+  return res.data;
+}

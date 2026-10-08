@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import FaceCamera from '../components/FaceCamera';
-import { registerFace, type RegisterResponse } from '../api/faceid';
+import axios from 'axios';
+import { addPhoto, registerFace, type RegisterResponse } from '../api/faceid';
 import { useLang } from '../context/LangContext';
 
-type Step = 'form' | 'camera' | 'result';
+type Step = 'form' | 'camera' | 'result' | 'more';
 
 interface RegisterPageProps {
   onIdentify: () => void;
@@ -18,6 +19,9 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
   const [result, setResult] = useState<RegisterResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [photosCount, setPhotosCount] = useState(1);
+  const [addNotice, setAddNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +51,25 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
     }
   }, [fullName, email]);
 
+  const handleAddPhoto = useCallback(async (base64: string) => {
+    if (!result) return;
+    setAdding(true);
+    try {
+      const res = await addPhoto(result.id, base64);
+      setPhotosCount(res.photos_count);
+      setAddNotice({ ok: true, text: `${t.register.photoAdded} (${res.photos_count})` });
+    } catch (err: unknown) {
+      const detail = axios.isAxiosError(err) ? String(err.response?.data?.detail ?? err.message) : String(err);
+      setAddNotice({ ok: false, text: detail.startsWith('Photo does not match') ? t.register.photoMismatch : detail });
+    } finally {
+      setAdding(false);
+      setStep('result');
+    }
+  }, [result, t]);
+
   const handleReset = () => {
+    setPhotosCount(1);
+    setAddNotice(null);
     setStep('form');
     setFullName('John Doe');
     setEmail(`${crypto.randomUUID()}@example.com`);
@@ -137,6 +159,24 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
         </div></div>
       )}
 
+      {/* STEP 4 — Add another photo */}
+      {step === 'more' && result && (
+        <div style={{ maxWidth: 860, margin: '0 auto' }}><div className="two-col">
+          {adding ? (
+            <div className="panel-wrap"><div className="panel"><div className="loading-row"><div className="spinner" /><span>{t.register.adding}</span></div></div></div>
+          ) : (
+            <FaceCamera onCapture={handleAddPhoto} onFaceDetected={() => {}} autoCapture />
+          )}
+          <div className="panel-wrap">
+            <div className="panel">
+              <div className="panel-title">{t.register.addingTitle}: {result.full_name}</div>
+              <p className="hint">{t.register.addingHint}</p>
+              {!adding && <button className="btn-ghost" onClick={() => setStep('result')}>{t.register.btnCancel}</button>}
+            </div>
+          </div>
+        </div></div>
+      )}
+
       {/* STEP 3 — Result */}
       {step === 'result' && result && capturedImg && (
         <div style={{ maxWidth: 520, margin: '0 auto' }}>
@@ -156,6 +196,15 @@ export default function RegisterPage({ onIdentify }: RegisterPageProps) {
                   <span>{value}</span>
                 </div>
               ))}
+              <div className="more-photos">
+                <div className="step-title">{t.register.moreTitle}</div>
+                <p className="hint" style={{ margin: '4px 0 10px' }}>{t.register.moreHint}</p>
+                {addNotice && <div className={`banner ${addNotice.ok ? 'ok' : 'err'}`}>{addNotice.ok ? '✓' : '✕'} {addNotice.text}</div>}
+                <div className="more-photos-row">
+                  <span className="hint" style={{ margin: 0 }}>{t.register.photosCount}: <strong>{photosCount}</strong></span>
+                  <button className="btn-ghost" onClick={() => { setAddNotice(null); setStep('more'); }}>{t.register.btnAddPhoto}</button>
+                </div>
+              </div>
               <div style={{ marginTop: 16 }}>
                 <button className="btn-main" onClick={handleReset}>{t.register.btnRegisterAnother}</button>
                 <button className="btn-ghost" onClick={onIdentify}>{t.register.btnGoIdentify}</button>

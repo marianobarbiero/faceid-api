@@ -182,6 +182,7 @@ export default function AdminPage() {
                   <th>{t.admin.colEmail}</th>
                   <th>{t.admin.colExternalId}</th>
                   <th>{t.admin.colModel}</th>
+                  <th>{t.admin.colPhotos}</th>
                   <th>{t.admin.colStatus}</th>
                   <th>{t.admin.colCreated}</th>
                 </tr>
@@ -197,6 +198,7 @@ export default function AdminPage() {
                     <td data-label={t.admin.colEmail}>{user.email ?? '—'}</td>
                     <td data-label={t.admin.colExternalId}>{user.external_id ?? '—'}</td>
                     <td data-label={t.admin.colModel}>{user.model_name} · {user.detector_backend}</td>
+                    <td data-label={t.admin.colPhotos}>{user.photos_count}</td>
                     <td data-label={t.admin.colStatus}>
                       <span className={`status-pill ${user.is_active ? 'on' : 'off'}`}>
                         {user.is_active ? t.admin.active : t.admin.inactive}

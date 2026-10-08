@@ -19,3 +19,14 @@ class RegisterResponse(BaseModel):
     detector_backend: str
     is_active: bool
     created_at: datetime
+
+
+class AddPhotoRequest(BaseModel):
+    img: str
+
+
+class AddPhotoResponse(BaseModel):
+    photo_id: int
+    registration_id: int
+    photos_count: int  # including the photo taken at /register
+    distance: float  # closest distance to the person's previous photos

@@ -38,6 +38,7 @@ export interface UserSummary {
   detector_backend: string;
   is_active: boolean;
   created_at: string;
+  photos_count: number;
 }
 
 export interface UserListResponse {

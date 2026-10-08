@@ -476,7 +476,7 @@ h1.home-title {
   .user-table th:last-child { border-top-right-radius: var(--radius-sm); }
   .user-table td { padding: 12px; vertical-align: middle; border-bottom: 1px solid var(--border); }
   .user-table th,
-  .user-table td:nth-child(2), .user-table td:nth-child(6), .user-table td:nth-child(7) { white-space: nowrap; overflow-wrap: normal; }
+  .user-table td:nth-child(2), .user-table td:nth-child(7), .user-table td:nth-child(8) { white-space: nowrap; overflow-wrap: normal; }
   .user-table tbody tr:last-child td { border-bottom: none; }
   .user-table tbody tr:hover td { background: var(--surface-alt); }
   .user-table td[data-label]:not(:nth-child(2))::before { content: none; }
@@ -531,3 +531,8 @@ h1.home-title {
 .bar-fill { height: 100%; background: var(--border-hi); border-radius: 4px; }
 .bar-row.top .bar-fill { background: var(--accent); }
 .bar-val { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── MORE PHOTOS ── */
+.more-photos { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.more-photos-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.more-photos-row .btn-ghost { width: auto; padding: 8px 14px; font-size: 14px; }

@@ -1,7 +1,7 @@
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.db.models import FaceRegistration
+from app.db.models import FacePhoto, FaceRegistration
 from app.schemas.admin import UserListResponse, UserSummary
 
 
@@ -24,8 +24,22 @@ def list_users(db: Session, q: str | None, limit: int, offset: int) -> UserListR
         .offset(offset)
     ).all()
 
+    ids = [row.id for row in rows]
+    extra = dict(
+        db.execute(
+            select(FacePhoto.registration_id, func.count())
+            .where(FacePhoto.registration_id.in_(ids))
+            .group_by(FacePhoto.registration_id)
+        ).all()
+    ) if ids else {}
+
     return UserListResponse(
-        items=[UserSummary.model_validate(row, from_attributes=True) for row in rows],
+        items=[
+            UserSummary.model_validate(row, from_attributes=True).model_copy(
+                update={"photos_count": 1 + extra.get(row.id, 0)}
+            )
+            for row in rows
+        ],
         total=total,
         limit=limit,
         offset=offset,
