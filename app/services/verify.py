@@ -24,6 +24,7 @@ def verify_faces(img1: str, img2: str) -> VerifyResponse:
         model_name=settings.model_name,
         detector_backend=settings.detector_backend,
         distance_metric=settings.distance_metric,
+        threshold=settings.match_threshold,
         align=True,
         enforce_detection=False,
         anti_spoofing=settings.anti_spoofing,

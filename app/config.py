@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -9,11 +10,19 @@ class Settings(BaseSettings):
     model_name: str = "VGG-Face"
     detector_backend: str = "opencv"
     distance_metric: str = "cosine"
+    # Max distance (in distance_metric units) to accept a match; None uses DeepFace's default
+    match_threshold: float | None = None
     cache_ttl: int = 300
     cache_maxsize: int = 256
     anti_spoofing: bool = False
 
     model_config = {"env_file": ".env"}
+
+    @field_validator("match_threshold", mode="before")
+    @classmethod
+    def _empty_threshold_is_none(cls, value: object) -> object:
+        # Allow "MATCH_THRESHOLD=" (empty) in .env to mean "use the default"
+        return None if value == "" else value
 
 
 settings = Settings()

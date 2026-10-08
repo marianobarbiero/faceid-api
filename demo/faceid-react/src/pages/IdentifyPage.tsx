@@ -114,7 +114,7 @@ export default function IdentifyPage() {
                       <div className="score-label">{t.identify.similarity}</div>
                       <div className="score-row">
                         <div className="score-track">
-                          <div className="score-fill" style={{ width: `${scorePercent(m.score, m.threshold)}%` }} />
+                          <div className="score-fill" style={{ width: `${scorePercent(m.score)}%` }} />
                         </div>
                         <div className="score-val">{m.score.toFixed(3)}</div>
                       </div>
