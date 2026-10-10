@@ -11,6 +11,10 @@
 # Windows + NVIDIA GPU: TensorFlow only uses the GPU under WSL2, so the backend can run
 # inside a WSL distro while the frontend and tunnel stay on Windows (see DEPLOY_TUNNEL.md):
 #   WSL_DISTRO=Ubuntu-22.04 ./scripts/tunnel.sh
+#
+# Local network only (no tunnel, nothing exposed to the internet): serves the demo over
+# HTTPS with a self-signed certificate so phones on the same Wi-Fi can use the camera:
+#   LAN=1 ./scripts/tunnel.sh
 # Compatible with the bash 3.2 shipped with macOS.
 
 set -euo pipefail
@@ -23,6 +27,9 @@ FRONTEND_PORT="${FRONTEND_PORT:-4173}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-300}"
 # Optional: run the backend inside this WSL distro (GPU). It must have ~/faceid-env.sh
 WSL_DISTRO="${WSL_DISTRO:-}"
+# Optional: LAN=1 skips the tunnel and serves HTTPS on the local network
+LAN="${LAN:-}"
+CERT_DIR="$ROOT_DIR/.certs"
 
 PIDS=""
 
@@ -54,7 +61,8 @@ require() {
   fi
 }
 
-require cloudflared "See DEPLOY_TUNNEL.md for installation."
+[ -n "$LAN" ] || require cloudflared "See DEPLOY_TUNNEL.md for installation."
+[ -z "$LAN" ] || require openssl "Needed to create the local HTTPS certificate."
 require npm "Install Node.js 20+."
 require curl "Install curl."
 
@@ -94,7 +102,34 @@ echo "==> Building frontend (VITE_API_URL=/api)"
 (cd "$FRONTEND_DIR" && { [ -d node_modules ] || npm ci; } \
   && MSYS2_ENV_CONV_EXCL=VITE_API_URL VITE_API_URL=/api npm run build)
 
-echo "==> Starting vite preview on :$FRONTEND_PORT (log: logs/frontend.log)"
+FRONTEND_SCHEME="http"
+if [ -n "$LAN" ]; then
+  # LAN address of this machine (Windows, macOS, Linux)
+  LAN_IP="$(powershell.exe -NoProfile -Command "(Get-NetIPConfiguration | Where-Object { \$_.IPv4DefaultGateway -and \$_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1).IPv4Address.IPAddress" 2>/dev/null | tr -d '\r' || true)"
+  [ -n "$LAN_IP" ] || LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || true)"
+  [ -n "$LAN_IP" ] || LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+  [ -n "$LAN_IP" ] || { echo "Error: could not find this machine's LAN address" >&2; exit 1; }
+
+  # One self-signed certificate per LAN address (browsers check the IP against it)
+  mkdir -p "$CERT_DIR"
+  CERT="$CERT_DIR/cert-$LAN_IP.pem"
+  KEY="$CERT_DIR/key-$LAN_IP.pem"
+  if [ ! -f "$CERT" ]; then
+    echo "==> Creating a self-signed HTTPS certificate for $LAN_IP"
+    # Run from the cert folder with relative names: MSYS_NO_PATHCONV keeps Git Bash from
+    # rewriting "/CN=..." into a Windows path, but would also break absolute output paths
+    if ! (cd "$CERT_DIR" && MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+      -keyout "key-$LAN_IP.pem" -out "cert-$LAN_IP.pem" -subj "/CN=faceid-demo" \
+      -addext "subjectAltName=IP:$LAN_IP,IP:127.0.0.1,DNS:localhost" >"$LOG_DIR/openssl.log" 2>&1); then
+      echo "Error: could not create the certificate. See logs/openssl.log" >&2
+      exit 1
+    fi
+  fi
+  export HTTPS_KEY="$KEY" HTTPS_CERT="$CERT"
+  FRONTEND_SCHEME="https"
+fi
+
+echo "==> Starting vite preview on $FRONTEND_SCHEME://:$FRONTEND_PORT (log: logs/frontend.log)"
 (cd "$FRONTEND_DIR" && exec ./node_modules/.bin/vite preview \
   --port "$FRONTEND_PORT" --strictPort) >"$LOG_DIR/frontend.log" 2>&1 &
 PIDS="$PIDS $!"
@@ -111,7 +146,7 @@ until curl -fsS "http://127.0.0.1:$BACKEND_PORT/health" >/dev/null 2>&1; do
 done
 echo "    backend OK"
 
-until curl -fsS "http://127.0.0.1:$FRONTEND_PORT/api/health" >/dev/null 2>&1; do
+until curl -fsSk "$FRONTEND_SCHEME://127.0.0.1:$FRONTEND_PORT/api/health" >/dev/null 2>&1; do
   if [ "$elapsed" -ge "$HEALTH_TIMEOUT" ]; then
     echo "Error: vite preview proxy not responding. See logs/frontend.log" >&2
     exit 1
@@ -121,27 +156,43 @@ until curl -fsS "http://127.0.0.1:$FRONTEND_PORT/api/health" >/dev/null 2>&1; do
 done
 echo "    frontend proxy OK"
 
-echo "==> Opening Cloudflare Quick Tunnel (log: logs/tunnel.log)"
-cloudflared tunnel --no-autoupdate --url "http://localhost:$FRONTEND_PORT" >"$LOG_DIR/tunnel.log" 2>&1 &
-PIDS="$PIDS $!"
+if [ -n "$LAN" ]; then
+  echo
+  echo "============================================================"
+  echo "  Local network URL : https://$LAN_IP:$FRONTEND_PORT"
+  echo "  On this PC        : https://localhost:$FRONTEND_PORT"
+  echo "  Open it from a phone on the same Wi-Fi. The certificate is"
+  echo "  self-signed: accept the browser warning once."
+  echo "  Nothing is exposed to the internet."
+  echo "============================================================"
+else
+  echo "==> Opening Cloudflare Quick Tunnel (log: logs/tunnel.log)"
+  cloudflared tunnel --no-autoupdate --url "http://localhost:$FRONTEND_PORT" >"$LOG_DIR/tunnel.log" 2>&1 &
+  TUNNEL_PID=$!
+  PIDS="$PIDS $TUNNEL_PID"
 
-URL=""
-for _ in $(seq 1 60); do
-  URL="$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$LOG_DIR/tunnel.log" | head -n 1 || true)"
-  [ -n "$URL" ] && break
-  sleep 1
-done
-if [ -z "$URL" ]; then
-  echo "Error: could not get the tunnel URL. See logs/tunnel.log" >&2
-  exit 1
+  URL=""
+  for _ in $(seq 1 60); do
+    # api.trycloudflare.com is Cloudflare's endpoint (it shows up in error messages), not the tunnel
+    URL="$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$LOG_DIR/tunnel.log" | grep -v '://api\.' | head -n 1 || true)"
+    [ -n "$URL" ] && break
+    kill -0 "$TUNNEL_PID" 2>/dev/null || break
+    sleep 1
+  done
+  if [ -z "$URL" ]; then
+    echo "Error: could not create the tunnel:" >&2
+    grep -iE "error|failed" "$LOG_DIR/tunnel.log" | tail -n 3 >&2 || true
+    echo "If it says 'no such host', your DNS blocks trycloudflare.com: use LAN=1 or another DNS." >&2
+    exit 1
+  fi
+
+  echo
+  echo "============================================================"
+  echo "  Public URL : $URL"
+  echo "  Health     : $URL/api/health"
+  echo "  (the URL changes every time the tunnel restarts)"
+  echo "============================================================"
 fi
-
-echo
-echo "============================================================"
-echo "  Public URL : $URL"
-echo "  Health     : $URL/api/health"
-echo "  (the URL changes every time the tunnel restarts)"
-echo "============================================================"
 echo "Press Ctrl+C to stop."
 
 # Exit (and clean up) as soon as any process dies; bash 3.2 has no `wait -n`
