@@ -9,6 +9,13 @@ const mediapipeVersion: string = JSON.parse(
 ).version
 
 // Headers required for SharedArrayBuffer (MediaPipe WASM)
+// Optional HTTPS for `vite preview` (scripts/tunnel.sh LAN=1 sets these to a self-signed cert):
+// phones only allow camera access on secure origins
+const https =
+  process.env.HTTPS_KEY && process.env.HTTPS_CERT
+    ? { key: readFileSync(process.env.HTTPS_KEY), cert: readFileSync(process.env.HTTPS_CERT) }
+    : undefined
+
 const crossOriginHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Embedder-Policy': 'require-corp',
@@ -50,6 +57,7 @@ export default defineConfig({
   },
   preview: {
     host: true,
+    https,
     allowedHosts,
     headers: crossOriginHeaders,
     proxy: apiProxy,

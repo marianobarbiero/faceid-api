@@ -58,3 +58,6 @@ htmlcov/
 tests/
 .claude/
 CLAUDE.md
+
+# Self-signed HTTPS certificates for LAN demos
+.certs/

@@ -120,6 +120,18 @@ cloudflared tunnel --no-autoupdate --url http://localhost:4173
 
 `cloudflared` imprime la URL (`https://<algo>.trycloudflare.com`) en un recuadro. Para cortar, Ctrl+C en cada terminal.
 
+### Solo en la red local (sin túnel)
+
+Si no querés exponer nada a internet, o tu DNS bloquea `trycloudflare.com` (error `no such host`), levantá la demo solo en tu red:
+
+```bash
+LAN=1 ./scripts/tunnel.sh                          # o LAN=1 WSL_DISTRO=Ubuntu-22.04 ./scripts/tunnel.sh
+```
+
+- Sirve el frontend por **HTTPS** con un certificado autofirmado (se crea solo en `.certs/`, uno por IP). Sin HTTPS los celulares no permiten usar la cámara.
+- Imprime la dirección para abrir desde un celular en el mismo Wi-Fi (`https://<ip-de-la-pc>:4173`). La primera vez el navegador avisa que el certificado no es de confianza: hay que aceptarlo.
+- En Windows, la red tiene que ser **Privada** y el firewall tiene que permitir Node.js en redes privadas.
+
 ### Windows con GPU NVIDIA (WSL2)
 
 TensorFlow no usa la GPU en Windows nativo (desde la versión 2.11), pero sí dentro de WSL2. Con esta opción el backend corre en Ubuntu (WSL) con la GPU, y el frontend y el túnel siguen en Windows; WSL2 comparte `localhost`, así que el proxy a `:8000` funciona igual.
